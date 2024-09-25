@@ -93,6 +93,17 @@ vim.g.maplocalleader = ' '
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
 
+vim.g.clipboard = {
+  name = 'OSC 52',
+  copy = {
+    ['+'] = require('vim.ui.clipboard.osc52').copy '+',
+    ['*'] = require('vim.ui.clipboard.osc52').copy '*',
+  },
+  paste = {
+    ['+'] = require('vim.ui.clipboard.osc52').paste '+',
+    ['*'] = require('vim.ui.clipboard.osc52').paste '*',
+  },
+}
 -- [[ Setting options ]]
 -- See `:help vim.opt`
 -- NOTE: You can change these options as you wish!
@@ -190,6 +201,17 @@ vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right win
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
+vim.keymap.set({ 'n', 'v' }, '<leader>y', '"+y') -- yank motion
+vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"+Y') -- yank line
+
+-- Delete into system clipboard
+vim.keymap.set({ 'n', 'v' }, '<leader>d', '"+d') -- delete motion
+vim.keymap.set({ 'n', 'v' }, '<leader>D', '"+D') -- delete line
+
+-- Paste from system clipboard
+vim.keymap.set('n', '<leader>p', '"+p') -- paste after cursor
+vim.keymap.set('n', '<leader>P', '"+P') -- paste before cursor
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -271,7 +293,10 @@ require('lazy').setup({
       require('nvim-tree').setup {}
     end,
   },
-
+  {
+    'dccsillag/magma-nvim',
+    lazy = false,
+  },
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
   -- This is often very useful to both group configuration, as well as handle
@@ -526,17 +551,48 @@ require('lazy').setup({
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
           end
 
+          map('gdv', function()
+            vim.cmd 'vsplit' -- Create a horizontal split
+            vim.cmd 'b#'
+            require('telescope.builtin').lsp_definitions()
+          end, '[G]oto definition in [V]ertical Split')
+          map('gdh', function()
+            vim.cmd 'split' -- Create a horizontal split
+            vim.cmd 'b#'
+            require('telescope.builtin').lsp_definitions()
+          end, '[G]oto definition in [H]orizontal Split')
+          map('grv', function()
+            vim.cmd 'vsplit' -- Create a horizontal split
+            vim.cmd 'b#'
+            require('telescope.builtin').lsp_references()
+          end, '[G]oto [S]plit and find reference in [V]ertical split')
+
+          map('grh', function()
+            vim.cmd 'split' -- Create a horizontal split
+            vim.cmd 'b#'
+            require('telescope.builtin').lsp_references()
+          end, '[G]oto [S]plit and find reference in [H]orizontal split')
+          map('gIv', function()
+            vim.cmd 'vsplit' -- Create a horizontal split
+            vim.cmd 'b#'
+            require('telescope.builtin').lsp_implementations()
+          end, '[G]oto [S]plit and find [I]mplementation in [V]ertical split')
+          map('grh', function()
+            vim.cmd 'split' -- Create a horizontal split
+            vim.cmd 'b#'
+            require('telescope.builtin').lsp_implementations()
+          end, '[G]oto [S]plit and find [I]mplementation in [H]orizontal split')
           -- Jump to the definition of the word under your cursor.
           --  This is where a variable was first declared, or where a function is defined, etc.
           --  To jump back, press <C-t>.
-          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+          map('gdc', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition in [C]urrent window')
 
           -- Find references for the word under your cursor.
-          map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+          map('grc', require('telescope.builtin').lsp_references, '[G]oto [R]eferences in [C]urrent window')
 
           -- Jump to the implementation of the word under your cursor.
           --  Useful when your language has ways of declaring types without an actual implementation.
-          map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+          map('gIc', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation in [C]urrent window')
 
           -- Jump to the type of the word under your cursor.
           --  Useful when you're not sure what type a variable is and you want to see
@@ -621,9 +677,9 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
+        clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
