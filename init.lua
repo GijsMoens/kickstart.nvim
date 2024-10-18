@@ -92,7 +92,7 @@ vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
---[[
+
 vim.g.clipboard = {
   name = 'OSC 52',
   copy = {
@@ -104,7 +104,7 @@ vim.g.clipboard = {
     ['*'] = require('vim.ui.clipboard.osc52').paste '*',
   },
 }
---]]
+
 -- [[ Setting options ]]
 -- See `:help vim.opt`
 -- NOTE: You can change these options as you wish!
@@ -175,10 +175,37 @@ vim.opt.scrolloff = 10
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
+vim.api.nvim_set_keymap('n', '<leader>vs', ':VenvSelect<CR>', { noremap = true, silent = true })
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+vim.keymap.set('n', '<leader>to', function() end, { desc = '[T]oggle [O]il' })
 
+vim.keymap.set('n', '<leader>tow', function()
+  require('oil').open()
+end, { desc = '[T]oggle [O]il [W]indow' })
+
+vim.keymap.set('n', '<leader>tov', function()
+  -- Get the name of the Oil buffer for the current working directory
+  vim.cmd 'vsplit'
+  vim.cmd 'wincmd h'
+  vim.cmd 'vertical resize 60'
+  require('oil').open()
+end, { desc = '[T]oggle [O]il [V]ertical' })
+
+vim.keymap.set('n', '<leader><C-c>', function()
+  -- local oil = require 'oil'
+
+  -- Get the current. directory from oil.nvim
+  require('oil.actions').copy_entry_path.callback()
+  vim.fn.setreg('+', vim.fn.getreg(vim.v.register))
+  -- local current_dir = oil.get_cursor_entry()
+  -- print(current_dir)
+  -- Insert the current directory into the buffer at the cursor position
+  -- vim.fn.setreg('+', current_dir)
+end, { desc = '[P]ut Oil [Working [D]irectory in buffer' })
+
+vim.keymap.set('n', '<leader>tof', '<C-s>', { desc = '[T]oggle [O]il [F]ile' })
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -201,6 +228,8 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+vim.keymap.set('n', '<C-w>-', '<C-w>=', { desc = 'split back the current window' })
+vim.keymap.set('n', '<C-w>=', '<C-w>|', { desc = 'Max out the current window' })
 
 vim.keymap.set({ 'n', 'v' }, '<leader>y', '"+y') -- yank motion
 vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"+Y') -- yank line
@@ -282,6 +311,45 @@ require('lazy').setup({
   {
     'nvim-lualine/lualine.nvim',
     dependencies = { 'nvim-tree/nvim-web-devicons' },
+  },
+  {
+    'linux-cultist/venv-selector.nvim',
+    event = 'VeryLazy', -- or "BufReadPre" or any other event you prefer
+    config = function()
+      require('venv-selector').setup {
+        anaconda_envs_path = '/home/g.moens/miniconda3/envs',
+        anaconda_base_path = ' /home/g.moens/miniconda3',
+        -- Custom configuration options
+        auto_refresh = false, -- Disable automatic refresh to speed up Neovim start-up
+        search_venv_managers = true, -- Search for virtual environments created by poetry, pipenv, etc.
+        name_formatter = function(path)
+          -- Custom formatting function for displaying the virtual environment name
+          return vim.fn.fnamemodify(path, ':t')
+        end,
+      }
+      -- Set a keybinding to toggle the venv selector UI
+      vim.api.nvim_set_keymap('n', '<leader>vs', ':VenvSelect<CR>', { noremap = true, silent = true })
+    end,
+  },
+  {
+    'stevearc/oil.nvim',
+    ---@module 'oil'
+    ---@type oil.SetupOpts
+    opts = {
+      -- Configuration for oil.nvim, including custom keymaps
+      keymaps = {
+        ['yp'] = {
+          desc = 'Copy filepath to system clipboard',
+          callback = function()
+            -- Copy the file path to clipboard
+            require('oil.actions').copy_entry_path.callback()
+            vim.fn.setreg('+', vim.fn.getreg(vim.v.register))
+          end,
+        },
+      },
+    },
+    -- Optional dependencies
+    dependencies = { { 'echasnovski/mini.icons', opts = {} } },
   },
   {
     'github/copilot.vim',

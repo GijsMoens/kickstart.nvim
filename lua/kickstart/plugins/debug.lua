@@ -34,12 +34,14 @@ return {
     return {
       -- Basic debugging keymaps, feel free to change to your liking!
       { '<leader>dc', dap.continue, desc = 'Debug: Start/Continue' },
+      { '<leader>ds', dap.continue, desc = 'Debug: Start/Continue' },
       { '<leader>di', dap.step_into, desc = 'Debug: Step Into' },
       { '<leader>do', dap.step_over, desc = 'Debug: Step Over' },
       { '<leader>dt', dap.step_out, desc = 'Debug: Step Out' },
       { '<leader>db', dap.toggle_breakpoint, desc = 'Debug: Toggle Breakpoint' },
+      { '<leader>de', vim.diagnostic.open_float, desc = 'Debug: open float' },
       {
-        '<leader>de',
+        '<leader>dq',
         function()
           dap.terminate() -- Terminate the current debugging session
           require('dapui').close() -- Close DAP UI windows if open
@@ -156,6 +158,6 @@ return {
         detached = vim.fn.has 'win32' == 0,
       },
     }
-    require('dap-python').setup 'python3'
+    require('dap-python').setup '/home/g.moens/miniconda3/envs/cuda12_env/bin/python'
   end,
 }
