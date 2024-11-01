@@ -1,4 +1,3 @@
--- debug.lua
 --
 -- Shows how to use the DAP plugin to debug your code.
 --
@@ -32,72 +31,77 @@ return {
     local dap = require 'dap'
     local dapui = require 'dapui'
     return {
-      -- Basic debugging keymaps, feel free to change to your liking!
-      { '<leader>dc', dap.continue, desc = 'Debug: Start/Continue' },
-      { '<leader>ds', dap.continue, desc = 'Debug: Start/Continue' },
-      { '<leader>di', dap.step_into, desc = 'Debug: Step Into' },
-      { '<leader>do', dap.step_over, desc = 'Debug: Step Over' },
-      { '<leader>dt', dap.step_out, desc = 'Debug: Step Out' },
-      { '<leader>db', dap.toggle_breakpoint, desc = 'Debug: Toggle Breakpoint' },
+      -- Function keys for main DAP actions
+      { '<F3>', dapui.toggle, desc = 'DAP toggle UI' },
+      { '<F4>', dap.pause, desc = 'DAP pause (thread)' },
+      { '<F5>', dap.continue, desc = 'DAP launch or continue' },
+      { '<F6>', dap.step_into, desc = 'DAP step into' },
+      { '<F7>', dap.step_over, desc = 'DAP step over' },
+      { '<F8>', dap.step_out, desc = 'DAP step out' },
+      { '<F9>', dap.step_back, desc = 'DAP step back' },
+      {
+        '<F10>',
+        function()
+          dap.run_last()
+        end,
+        desc = 'DAP run last',
+      },
+      { '<F12>', dap.terminate, desc = 'DAP terminate' },
+
+      -- Leader-based mappings for extended DAP actions
+      {
+        '<leader>dd',
+        function()
+          dap.disconnect { terminateDebuggee = false }
+        end,
+        desc = 'DAP disconnect',
+      },
       { '<leader>de', vim.diagnostic.open_float, desc = 'Debug: open float' },
       {
-        '<leader>dq',
+        '<leader>dt',
         function()
-          dap.terminate() -- Terminate the current debugging session
-          require('dapui').close() -- Close DAP UI windows if open
-          print 'Debugging session terminated'
+          dap.disconnect { terminateDebuggee = true }
         end,
-        desc = 'Debug: Exit Debugger',
+        desc = 'DAP disconnect and terminate',
       },
+      { '<leader>db', dap.toggle_breakpoint, desc = 'DAP toggle breakpoint' },
       {
-        '<leader>dor',
-        function()
-          local repl_buf = vim.fn.bufnr 'dap-repl' -- Check if REPL buffer exists
-          if repl_buf ~= -1 then
-            for _, win in pairs(vim.fn.win_findbuf(repl_buf)) do
-              vim.api.nvim_set_current_win(win) -- Focus the REPL window
-              return
-            end
-          else
-            require('dap').repl.open() -- Open the REPL if it's not already open
-          end
-        end,
-        desc = 'Debug: Focus on REPL',
-      },
-
-      {
-        '<leader>dom',
-        function()
-          -- Get the buffer number of the last edited file
-          local last_buf = vim.fn.bufnr '#'
-
-          if last_buf ~= -1 and vim.api.nvim_buf_is_valid(last_buf) then
-            -- Check all windows to find the one displaying the last buffer
-            for _, win in ipairs(vim.api.nvim_list_wins()) do
-              if vim.api.nvim_win_get_buf(win) == last_buf then
-                vim.api.nvim_set_current_win(win) -- Focus on the window with the last edited buffer
-                return
-              end
-            end
-            print 'Last edited file is not visible in any window'
-          else
-            print 'No valid last edited file'
-          end
-        end,
-        desc = "Focus on Last Edited File's Window",
-      },
-
-      vim.api.nvim_set_keymap('n', '<leader>dos', '<Cmd>lua require"dapui".float_element("scopes")<CR>', { noremap = true, silent = true }),
-      -- { '<leader>doe', dapui.., desc = 'Debug: Open expressions' },
-      {
-        '<leader>B',
+        '<leader>dB',
         function()
           dap.set_breakpoint(vim.fn.input 'Breakpoint condition: ')
         end,
-        desc = 'Debug: Set Breakpoint',
+        desc = 'DAP set breakpoint with condition',
       },
-      -- Toggle to see last session result. Without this, you can't see session output in case of unhandled exception.
-      { '<F7>', dapui.toggle, desc = 'Debug: See last session result.' },
+      {
+        '<leader>dp',
+        function()
+          dap.set_breakpoint(nil, nil, vim.fn.input 'Log point message: ')
+        end,
+        desc = 'DAP set breakpoint with log point message',
+      },
+      {
+        '<leader>dr',
+        function()
+          dap.repl.toggle()
+        end,
+        desc = 'DAP toggle debugger REPL',
+      }, -- Optional if not using dap-ui
+
+      {
+        '<leader>dk',
+        function()
+          dap.down()
+        end,
+        { noremap = true, silent = true, desc = 'DAP down' },
+      },
+      {
+        '<leader>dj',
+        function()
+          dap.up()
+        end,
+        { noremap = true, silent = true, desc = 'DAP up' },
+      },
+      -- Additional mappings (optional)
       unpack(keys),
     }
   end,
@@ -106,58 +110,97 @@ return {
     local dapui = require 'dapui'
 
     require('mason-nvim-dap').setup {
-      -- Makes a best effort to setup the various debuggers with
-      -- reasonable debug configurations
       automatic_installation = true,
-
-      -- You can provide additional configuration to the handlers,
-      -- see mason-nvim-dap README for more information
       handlers = {},
-
-      -- You'll need to check that you have the required things installed
-      -- online, please don't ask me how to install them :)
-      ensure_installed = {
-        -- Update this to ensure that you have the debuggers for the langs you want
-        'delve',
-      },
+      ensure_installed = { 'delve' },
     }
 
-    vim.keymap.set('n', '<leader>drl', ":lua require('dapui').open({reset_layout = true})<CR>", { desc = 'reset the dapui layout', noremap = true })
-    vim.keymap.set('n', '<leader>drr', dap.run_last, { desc = 'reset the dapui debugger' })
-    -- Dap UI setup
-    -- For more information, see |:help nvim-dap-ui|
+    dap.set_log_level 'DEBUG'
+    dap.defaults.php.exception_breakpoints = { 'Notice', 'Warning', 'Error', 'Exception' }
     dapui.setup {
-      -- Set icons to characters that are more likely to work in every terminal.
-      --    Feel free to remove or use ones that you like more! :)
-      --    Don't feel like these are good choices.
-      icons = { expanded = '▾', collapsed = '▸', current_frame = '*' },
+      icons = {
+        expanded = '▾',
+        collapsed = '▸',
+        current_frame = '⚪', -- Changed for better visibility
+      },
       controls = {
+        enabled = true, -- Show controls by default for easy stepping
         icons = {
           pause = '⏸',
           play = '▶',
           step_into = '⏎',
           step_over = '⏭',
           step_out = '⏮',
-          step_back = 'b',
-          run_last = '▶▶',
+          step_back = '🔙', -- Updated for clarity
+          run_last = '🔄', -- Clear icon for rerun
           terminate = '⏹',
           disconnect = '⏏',
         },
       },
+      layouts = {
+        {
+          elements = {
+            { id = 'scopes', size = 0.4 }, -- Larger size for easy viewing of model parameters, gradients
+            { id = 'watches', size = 0.2 },
+            { id = 'breakpoints', size = 0.2 },
+            { id = 'stacks', size = 0.2 },
+          },
+          size = 50, -- Adjusted for a good balance
+          position = 'left',
+        },
+        {
+          elements = {
+            'repl', -- Moved REPL to top for quick access to variable states
+            'console',
+          },
+          size = 15, -- Larger console for debugging printouts
+          position = 'bottom',
+        },
+      },
+      floating = {
+        border = 'rounded', -- Rounded borders for better aesthetics
+      },
+      render = {
+        max_type_length = nil, -- Remove any length limit to view full data structures
+      },
     }
 
-    dap.listeners.after.event_initialized['dapui_config'] = dapui.open
-    dap.listeners.before.event_terminated['dapui_config'] = dapui.close
-    dap.listeners.before.event_exited['dapui_config'] = dapui.close
+    local status, err = pcall(function()
+      dofile(vim.fn.expand '~/nnUNet/nnunetv2/tests/nvim-dap.lua')
+    end)
 
-    -- Install golang specific config
+    if not status then
+      print('Error loading nvim-dap.lua: ', err)
+    end
+
+    require('nvim-dap-projects').config_paths = { '/home/g.moens/nnUNet/nnunetv2/tests/nvim-dap.lua' }
+
+    dap.listeners.after.event_initialized['dapui_config'] = function()
+      dapui.open()
+    end
+    dap.listeners.before.event_terminated['dapui_config'] = function()
+      dapui.close()
+    end
+    dap.listeners.before.event_exited['dapui_config'] = function()
+      dapui.close()
+    end
+    -- Lock 'q' and fix pane sizes
+    vim.api.nvim_create_autocmd('FileType', {
+      pattern = { 'dapui_scopes', 'dapui_breakpoints', 'dapui_stacks', 'dapui_watches', 'dapui_repl', 'dapui_console' },
+      callback = function()
+        vim.api.nvim_buf_set_keymap(0, 'n', 'q', '', { noremap = true, silent = true }) -- Disable `q` key
+        vim.cmd 'setlocal winfixwidth'
+        vim.cmd 'setlocal winfixheight'
+      end,
+    })
+
+    -- Golang specific config
     require('dap-go').setup {
       delve = {
-        -- On Windows delve must be run attached or it crashes.
-        -- See https://github.com/leoluz/nvim-dap-go/blob/main/README.md#configuring
         detached = vim.fn.has 'win32' == 0,
       },
     }
+
     require('dap-python').setup '/home/g.moens/miniconda3/envs/cuda12_env/bin/python'
   end,
 }

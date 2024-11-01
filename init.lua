@@ -92,18 +92,20 @@ vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
-
-vim.g.clipboard = {
-  name = 'OSC 52',
-  copy = {
-    ['+'] = require('vim.ui.clipboard.osc52').copy '+',
-    ['*'] = require('vim.ui.clipboard.osc52').copy '*',
-  },
-  paste = {
-    ['+'] = require('vim.ui.clipboard.osc52').paste '+',
-    ['*'] = require('vim.ui.clipboard.osc52').paste '*',
-  },
-}
+--
+-- vim.g.clipboard = {
+--   name = 'OSC 52',
+--   copy = {
+--     ['+'] = require('vim.ui.clipboard.osc52').copy '+',
+--     ['*'] = require('vim.ui.clipboard.osc52').copy '*',
+--   },
+--   paste = {
+--     ['+'] = require('vim.ui.clipboard.osc52').paste '+',
+--     -- ['+'] = function() end,
+--     -- ['*'] = function() end,
+--     ['*'] = require('vim.ui.clipboard.osc52').paste '*',
+--   },
+-- }
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -174,8 +176,24 @@ vim.opt.scrolloff = 10
 
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
-vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
-vim.api.nvim_set_keymap('n', '<leader>vs', ':VenvSelect<CR>', { noremap = true, silent = true })
+--
+-- local function copy(lines, _)
+--   require('osc52').copy(table.concat(lines, '\n'))
+-- end
+--
+-- local function paste()
+--   return { vim.fn.split(vim.fn.getreg '', '\n'), vim.fn.getregtype '' }
+-- end
+--
+-- vim.g.clipboard = {
+--   name = 'osc52',
+--   copy = { ['+'] = copy, ['*'] = copy },
+--   paste = { ['+'] = paste, ['*'] = paste },
+-- }
+--
+-- Now the '+' register will copy to system clipboard using OSC52
+vim.keymap.set('n', '<leader>c', '"+y')
+vim.keymap.set('n', '<leader>cc', '"+yy')
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
@@ -313,42 +331,23 @@ require('lazy').setup({
     dependencies = { 'nvim-tree/nvim-web-devicons' },
   },
   {
-    'linux-cultist/venv-selector.nvim',
-    event = 'VeryLazy', -- or "BufReadPre" or any other event you prefer
-    config = function()
-      require('venv-selector').setup {
-        anaconda_envs_path = '/home/g.moens/miniconda3/envs',
-        anaconda_base_path = ' /home/g.moens/miniconda3',
-        -- Custom configuration options
-        auto_refresh = false, -- Disable automatic refresh to speed up Neovim start-up
-        search_venv_managers = true, -- Search for virtual environments created by poetry, pipenv, etc.
-        name_formatter = function(path)
-          -- Custom formatting function for displaying the virtual environment name
-          return vim.fn.fnamemodify(path, ':t')
-        end,
-      }
-      -- Set a keybinding to toggle the venv selector UI
-      vim.api.nvim_set_keymap('n', '<leader>vs', ':VenvSelect<CR>', { noremap = true, silent = true })
-    end,
-  },
-  {
     'stevearc/oil.nvim',
     ---@module 'oil'
     ---@type oil.SetupOpts
     opts = {
       -- Configuration for oil.nvim, including custom keymaps
       keymaps = {
-        ['yp'] = {
+        ['y@'] = {
           desc = 'Copy filepath to system clipboard',
           callback = function()
-            -- Copy the file path to clipboard
-            require('oil.actions').copy_entry_path.callback()
-            vim.fn.setreg('+', vim.fn.getreg(vim.v.register))
+            -- Use oil.nvim to copy the entry path, then send it to the clipboard with osc52
+            local path = require('oil.actions').copy_entry_path.callback()
+            vim.fn.setreg('+', path) -- Sets the system clipboard register '+'
+            require('osc52').copy(path) -- Use osc52 to ensure it's copied across
           end,
         },
       },
-    },
-    -- Optional dependencies
+    }, -- Optional dependencies
     dependencies = { { 'echasnovski/mini.icons', opts = {} } },
   },
   {
@@ -363,6 +362,22 @@ require('lazy').setup({
     },
     config = function()
       require('nvim-tree').setup {}
+    end,
+  },
+  {
+    'ojroques/nvim-osc52',
+    config = function()
+      require('osc52').setup()
+
+      -- Function to copy to system clipboard on yank
+      local function copy()
+        if vim.v.event.operator == 'y' and vim.v.event.regname == '' then
+          require('osc52').copy_register '"'
+        end
+      end
+
+      -- Automatically trigger the copy on yank
+      vim.api.nvim_create_autocmd('TextYankPost', { callback = copy })
     end,
   },
   {
@@ -625,33 +640,33 @@ require('lazy').setup({
 
           map('gdv', function()
             vim.cmd 'vsplit' -- Create a horizontal split
-            vim.cmd 'b#'
+            -- vim.cmd 'b#'
             require('telescope.builtin').lsp_definitions()
           end, '[G]oto definition in [V]ertical Split')
           map('gdh', function()
             vim.cmd 'split' -- Create a horizontal split
-            vim.cmd 'b#'
+            -- vim.cmd 'b#'
             require('telescope.builtin').lsp_definitions()
           end, '[G]oto definition in [H]orizontal Split')
           map('grv', function()
             vim.cmd 'vsplit' -- Create a horizontal split
-            vim.cmd 'b#'
+            -- vim.cmd 'b#'
             require('telescope.builtin').lsp_references()
           end, '[G]oto [S]plit and find reference in [V]ertical split')
 
           map('grh', function()
             vim.cmd 'split' -- Create a horizontal split
-            vim.cmd 'b#'
+            -- vim.cmd 'b#'
             require('telescope.builtin').lsp_references()
           end, '[G]oto [S]plit and find reference in [H]orizontal split')
           map('gIv', function()
             vim.cmd 'vsplit' -- Create a horizontal split
-            vim.cmd 'b#'
+            -- vim.cmd 'b#'
             require('telescope.builtin').lsp_implementations()
           end, '[G]oto [S]plit and find [I]mplementation in [V]ertical split')
           map('grh', function()
             vim.cmd 'split' -- Create a horizontal split
-            vim.cmd 'b#'
+            -- vim.cmd 'b#'
             require('telescope.builtin').lsp_implementations()
           end, '[G]oto [S]plit and find [I]mplementation in [H]orizontal split')
           -- Jump to the definition of the word under your cursor.
@@ -1029,28 +1044,28 @@ require('lazy').setup({
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
-    build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
-    -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
+    build = ':tsupdate',
+    main = 'nvim-treesitter.configs', -- sets main module to use for opts
+    -- [[ configure treesitter ]] see `:help nvim-treesitter`
     opts = {
       ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
+      -- autoinstall languages that are not installed
       auto_install = true,
       highlight = {
         enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
+        -- some languages depend on vim's regex highlighting system (such as ruby) for indent rules.
+        --  if you are experiencing weird indenting issues, add the language to
         --  the list of additional_vim_regex_highlighting and disabled languages for indent.
         additional_vim_regex_highlighting = { 'ruby' },
       },
       indent = { enable = true, disable = { 'ruby' } },
     },
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
+    -- there are additional nvim-treesitter modules that you can use to interact
+    -- with nvim-treesitter. you should go explore a few and see what interests you:
     --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+    --    - incremental selection: included, see `:help nvim-treesitter-incremental-selection-mod`
+    --    - show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
+    --    - treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
   -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
