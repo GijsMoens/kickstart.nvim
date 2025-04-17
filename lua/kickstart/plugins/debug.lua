@@ -13,6 +13,7 @@ return {
   keys = function(_, keys)
     local dap = require 'dap'
     local dapui = require 'dapui'
+    -- Problematic: passing a string instead of a table for something expected to be a table.
     return {
       { '<F3>', dapui.toggle, desc = 'DAP toggle UI' },
       { '<F4>', dap.pause, desc = 'DAP pause (thread)' },
@@ -51,6 +52,14 @@ return {
           dap.set_breakpoint(vim.fn.input 'Breakpoint condition: ')
         end,
         desc = 'DAP set breakpoint with condition',
+      },
+      {
+        '<leader>di',
+        function()
+          local lines = vim.fn.getregion(vim.fn.getpos '.', vim.fn.getpos 'v')
+          dap.repl.open()
+          dap.repl.execute(table.concat(lines, '\n'))
+        end,
       },
       {
         '<leader>dp',
@@ -95,14 +104,104 @@ return {
   config = function()
     local dap = require 'dap'
     local dapui = require 'dapui'
-    local widgets = require 'dap.ui.widgets'
 
-    -- Python configuration example
     dap.configurations.python = {
       {
         type = 'python',
         request = 'launch',
         name = 'inference',
+        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
+        args = {
+          '203',
+          '3d_fullres',
+          '0',
+          '-device',
+          'cuda',
+          '-tr',
+          'DS4Trainer',
+          '--npz',
+          '-val',
+          '--val_with',
+          '/projects/SSM_based_csPCa_segmentation/results/Dataset203_picai_zonal_nocrop/DS4Trainer__nnUNetPlans__3d_fullres__2025_03_19_16_53_41/fold_0/checkpoint_latest.pth',
+        },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'run_ssm_training_2d',
+        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
+        args = { '158', '2d', '0', '-device', 'cuda', '-tr', 'DS4Trainer', '--npz' },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'run_203_2d',
+        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
+        args = { '203', '2d', '0', '-device', 'cuda', '-tr', 'DS4Trainer', '--npz' },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'run_ssm_training_2d_dino',
+        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
+        args = { '203', '2d', '0', '-device', 'cuda', '-tr', 'DinoTrainer', '--npz' },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'run_ssm_training_3d',
+        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
+        args = { '203', '3d_fullres', '0', '-device', 'cuda', '-tr', 'DS4Trainer', '--npz' },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'run_disco',
+        program = '/home/g.moens/attention_guided_segmentation/disco/disco/main.py',
+        args = {
+          '--csv_file',
+          '/home/g.moens/attention_guided_segmentation/disco/disco/data/h3_cbs_lgn_9_normalized_2023.csv',
+          '--data_json',
+          '/home/g.moens/attention_guided_segmentation/disco/disco/data/data.json',
+        },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'validate_with',
+        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
+        args = {
+          '203',
+          '3d_fullres',
+          '0',
+          '-device',
+          'cuda',
+          '-tr',
+          'DS4Trainer',
+          '--npz',
+          '-val',
+          '--val_with',
+          '/projects/SSM_based_csPCa_segmentation/results/Dataset203_picai_zonal_nocrop/DS4Trainer__nnUNetPlans__3d_fullres__2025_03_19_16_53_41/fold_0/checkpoint_latest.pth',
+        },
+        console = 'integratedTerminal',
+        justMyCode = false,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'continue_with',
         program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
         args = {
           '203',
@@ -113,19 +212,10 @@ return {
           '-tr',
           'DS4Trainer',
           '--npz',
-          '--val',
-          '--val_with',
-          '/data/groups/beets-tan/g.moens/PI-CAI_results/Dataset203_picai_zonal_nocrop/DS4Trainer__nnUNetPlans__2d/fold_0/checkpoint_final.pth',
+          '--c',
+          '--continue_with',
+          '/projects/SSM_based_csPCa_segmentation/results/Dataset203_picai_zonal_nocrop/DS4Trainer__nnUNetPlans__2d__2025_04_10_16_23_15/fold_0',
         },
-        console = 'integratedTerminal',
-        justMyCode = false,
-      },
-      {
-        type = 'python',
-        request = 'launch',
-        name = 'validate_plain',
-        program = '/home/g.moens/nnUNet/nnunetv2/run/run_training.py',
-        args = { '203', '2d', '0', '-device', 'cuda', '-tr', 'DS4Trainer', '--npz' },
         console = 'integratedTerminal',
         justMyCode = false,
       },
@@ -133,46 +223,56 @@ return {
 
     require('mason-nvim-dap').setup {
       automatic_installation = true,
-      ensure_installed = { 'delve' },
+      handlers = {},
+      ensure_installed = {
+        'delve',
+      },
     }
 
-    dap.set_log_level 'DEBUG'
+    vim.keymap.set('n', '<leader>drl', function()
+      dapui.open()
+    end, { desc = 'reset the dapui layout', noremap = true })
+    vim.keymap.set('n', '<leader>drr', dap.run_last, { desc = 'reset the dapui debugger' })
+
     dapui.setup {
-      layouts = {
-        {
-          elements = { 'scopes', 'watches', 'breakpoints', 'stacks' },
-          size = 50,
-          position = 'left',
-        },
-        {
-          elements = { 'repl', 'console' },
-          size = 15,
-          position = 'bottom',
+      icons = {
+        expanded = '▾',
+        collapsed = '▸',
+        current_frame = '*',
+      },
+      controls = {
+        icons = {
+          pause = '⏸',
+          play = '▶',
+          step_into = '⏎',
+          step_over = '⏭',
+          step_out = '⏮',
+          step_back = 'b',
+          run_last = '▶▶',
+          terminate = '⏹',
+          disconnect = '⏏',
         },
       },
-      floating = { border = 'rounded' },
-    }
-
-    require('nvim-dap-projects').config_paths = { '/home/g.moens/nnUNet/nnunetv2/tests/nvim-dap.lua' }
-
-    -- Custom REPL formatting
-    local function custom_repr(value)
-      if type(value) == 'table' and value.__repr__ then
-        return value:__repr__()
-      else
-        return vim.inspect(value)
-      end
-    end
-
-    dap.repl.commands = {
-      custom_print = function(expression)
-        local value = assert(loadstring('return ' .. expression))()
-        print(custom_repr(value))
-      end,
-      expand = function(expression)
-        local value = assert(loadstring('return ' .. expression))()
-        print(vim.inspect(value))
-      end,
+      layouts = {
+        {
+          elements = {
+            {
+              id = 'breakpoints',
+              size = 0.2,
+            },
+            {
+              id = 'repl',
+              size = 0.5,
+            },
+            {
+              id = 'console',
+              size = 0.3,
+            },
+          },
+          position = 'left',
+          size = 150,
+        },
+      },
     }
 
     dap.listeners.after.event_initialized['dapui_config'] = function()
@@ -185,7 +285,15 @@ return {
       dapui.close()
     end
 
-    require('dap-go').setup()
+    -- Define the initial sign with the icon
+    vim.fn.sign_define('DapStopped', { text = '⭐️', texthl = '', linehl = 'DapStopped', numhl = '' })
+
+    require('nvim-dap-projects').config_paths = { '~/nnUNet/nnunetv2/tests/nvim-dap.lua' }
+    require('dap-go').setup {
+      delve = {
+        detached = vim.fn.has 'win32' == 0,
+      },
+    }
     require('dap-python').setup '/home/g.moens/miniconda3/envs/cuda12_env/bin/python'
   end,
 }

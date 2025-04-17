@@ -40,7 +40,7 @@ What is Kickstart?
     reference for how Neovim integrates Lua.
     - :help lua-guide
     - (or HTML version): https://neovim.io/doc/user/lua-guide.html
-
+init
 Kickstart Guide:
 
   TODO: The very first thing you should do is to run the command `:Tutor` in Neovim.
@@ -89,6 +89,8 @@ P.S. You can delete this when you're done too. It's your config now! :)
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
+vim.g.augment_workspace_folders = { '~/attention_guided_segmentation/', '~/nnUNet/' }
+vim.g.augment_disable_completions = true -- Add this line
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
@@ -171,6 +173,14 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+local notify = vim.notify
+vim.notify = function(msg, log_level, opts)
+  if log_level == vim.log.levels.INFO then
+    return
+  end
+  notify(msg, log_level, opts)
+end
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -192,8 +202,15 @@ vim.opt.scrolloff = 10
 -- }
 --
 -- Now the '+' register will copy to system clipboard using OSC52
-vim.keymap.set('n', '<leader>c', '"+y')
+vim.keymap.set('n', '<leader>e', vim.lsp.buf.code_action, { desc = 'LSP: Code Action' })
+
 vim.keymap.set('n', '<leader>cc', '"+yy')
+
+vim.keymap.set('n', '<leader>w-', ':resize -5<CR>')
+vim.keymap.set('n', '<leader>ac', ':Augment chat<CR>')
+vim.keymap.set('n', '<leader>an', ':Augment chat-new<CR>')
+vim.keymap.set('n', '<leader>at', ':Augment chat-toggle<CR>')
+vim.keymap.set('v', '<leader>ac', ':Augment chat<CR>')
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
@@ -202,6 +219,10 @@ vim.keymap.set('n', '<leader>to', function() end, { desc = '[T]oggle [O]il' })
 vim.keymap.set('n', '<leader>tow', function()
   require('oil').open()
 end, { desc = '[T]oggle [O]il [W]indow' })
+
+vim.keymap.set('n', '<leader>qp', function()
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('"_dP', true, false, true), 'n', true)
+end, { noremap = true, silent = true })
 
 vim.keymap.set('n', '<leader>tov', function()
   -- Get the name of the Oil buffer for the current working directory
@@ -274,6 +295,13 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'cuda',
+  callback = function()
+    vim.opt_local.commentstring = '// %s'
+  end,
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -331,6 +359,10 @@ require('lazy').setup({
     dependencies = { 'nvim-tree/nvim-web-devicons' },
   },
   {
+    'Vimjas/vim-python-pep8-indent',
+    ft = 'python', -- Lazy load on Python filetype
+  },
+  {
     'stevearc/oil.nvim',
     ---@module 'oil'
     ---@type oil.SetupOpts
@@ -380,10 +412,24 @@ require('lazy').setup({
       vim.api.nvim_create_autocmd('TextYankPost', { callback = copy })
     end,
   },
+  -- {
+  --   'jose-elias-alvarez/null-ls.nvim',
+  --   ft = { 'python' }, -- load only on Python files
+  --   config = function()
+  --     local null_ls = require 'null-ls'
+  --     null_ls.setup {
+  --       sources = {
+  --         null_ls.builtins.diagnostics.pylint,
+  --       },
+  --     }
+  --   end,
+  -- },
   {
     'dccsillag/magma-nvim',
     lazy = false,
   },
+  { 'augmentcode/augment.vim' },
+
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
   -- This is often very useful to both group configuration, as well as handle
@@ -483,6 +529,7 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+      { 'dawsers/telescope-file-history.nvim' },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -526,6 +573,7 @@ require('lazy').setup({
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'file_history')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
@@ -539,6 +587,13 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
+      vim.keymap.set('n', '<leader>cp', function()
+        vim.cmd 'let @" = expand("%")'
+      end, { desc = '[C]opy [P]ath of current file' })
+
+      vim.keymap.set('n', '<leader>fh', function()
+        require('telescope').extensions.file_history.file_history()
+      end, { desc = '[F]ile [H]istory' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -1001,50 +1056,35 @@ require('lazy').setup({
       vim.cmd.hi 'Comment gui=none'
     end,
   },
+  {
+    "kdheepak/lazygit.nvim",
+    lazy = true,
+    cmd = {
+        "LazyGit",
+        "LazyGitConfig",
+        "LazyGitCurrentFile",
+        "LazyGitFilter",
+        "LazyGitFilterCurrentFile",
+    },
+    -- optional for floating window border decoration
+    dependencies = {
+        "nvim-lua/plenary.nvim",
+    },
+    -- setting the keybinding for LazyGit with 'keys' is recommended in
+    -- order to load the plugin when the command is run for the first time
+    keys = {
+        { "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" }
+    }
+  },
 
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
-  { -- Collection of various small independent plugins/modules
-    'echasnovski/mini.nvim',
-    config = function()
-      -- Better Around/Inside textobjects
-      --
-      -- Examples:
-      --  - va)  - [V]isually select [A]round [)]paren
-      --  - yinq - [Y]ank [I]nside [N]ext [Q]uote
-      --  - ci'  - [C]hange [I]nside [']quote
-      require('mini.ai').setup { n_lines = 500 }
-
-      -- Add/delete/replace surroundings (brackets, quotes, etc.)
-      --
-      -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
-      -- - sd'   - [S]urround [D]elete [']quotes
-      -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
-
-      -- Simple and easy statusline.
-      --  You could remove this setup call if you don't like it,
-      --  and try some other statusline plugin
-      local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
-
-      -- You can configure sections in the statusline by overriding their
-      -- default behavior. For example, here we set the section for
-      -- cursor location to LINE:COLUMN
-      ---@diagnostic disable-next-line: duplicate-set-field
-      statusline.section_location = function()
-        return '%2l:%-2v'
-      end
-
-      -- ... and there is more!
-      --  Check out: https://github.com/echasnovski/mini.nvim
-    end,
-  },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
-    build = ':tsupdate',
+    build = function()
+      vim.cmd 'TSUpdate'
+    end,
     main = 'nvim-treesitter.configs', -- sets main module to use for opts
     -- [[ configure treesitter ]] see `:help nvim-treesitter`
     opts = {
