@@ -89,8 +89,6 @@ P.S. You can delete this when you're done too. It's your config now! :)
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-vim.g.augment_workspace_folders = { '~/attention_guided_segmentation/', '~/nnUNet/' }
-vim.g.augment_disable_completions = true -- Add this line
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
@@ -233,11 +231,16 @@ vim.keymap.set('n', '<leader>e', vim.lsp.buf.code_action, { desc = 'LSP: Code Ac
 vim.keymap.set('n', '<leader>cc', '"+yy')
 
 vim.keymap.set('n', '<leader>w-', ':resize -5<CR>')
-vim.keymap.set('n', '<leader>ac', ':Augment chat<CR>')
-vim.keymap.set('n', '<leader>an', ':Augment chat-new<CR>')
-vim.keymap.set('n', '<leader>at', ':Augment chat-toggle<CR>')
-vim.keymap.set('v', '<leader>ac', ':Augment chat<CR>')
 
+vim.keymap.set({ 'n', 'v' }, '<leader>aa', '<cmd>CodeCompanionActions<cr>', { noremap = true, silent = true })
+vim.keymap.set('v', 'ac', '<cmd>CodeCompanionChat Add<cr>', { noremap = true, silent = true })
+vim.keymap.set({ 'n', 'v' }, '<leader>at', '<cmd>CodeCompanionChat Toggle<cr>', { noremap = true, silent = true })
+
+-- vim.keymap.set({ "n", "v" }, "<LocalLeader>a", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
+-- vim.keymap.set("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+
+-- Expand 'cc' into 'CodeCompanion' in the command line
+vim.cmd [[cab cc CodeCompanion]]
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 vim.keymap.set('n', '<leader>to', function() end, { desc = '[T]oggle [O]il' })
@@ -249,6 +252,23 @@ end, { desc = '[T]oggle [O]il [W]indow' })
 vim.keymap.set('n', '<leader>qp', function()
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('"_dP', true, false, true), 'n', true)
 end, { noremap = true, silent = true })
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'oil',
+  callback = function()
+    vim.keymap.set('n', 'yp', function()
+      local entry = require('oil').get_cursor_entry()
+      if entry then
+        local path = entry.path
+        -- Use xclip for Linux systems
+        vim.system({ 'xclip', '-selection', 'clipboard' }, {
+          stdin = path,
+        })
+        vim.notify('Copied path: ' .. path)
+      end
+    end, { buffer = true, desc = 'Copy oil entry path' })
+  end,
+})
 
 vim.keymap.set('n', '<leader>tov', function()
   -- Get the name of the Oil buffer for the current working directory
@@ -271,6 +291,8 @@ vim.keymap.set('n', '<leader><C-c>', function()
 end, { desc = '[P]ut Oil [Working [D]irectory in buffer' })
 
 vim.keymap.set('n', '<leader>tof', '<C-s>', { desc = '[T]oggle [O]il [F]ile' })
+vim.keymap.set('n', '<leader>sv', ':so $MYVIMRC<CR>', { silent = true, noremap = true })
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -293,8 +315,6 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
-vim.keymap.set('n', '<C-w>-', '<C-w>=', { desc = 'split back the current window' })
-vim.keymap.set('n', '<C-w>=', '<C-w>|', { desc = 'Max out the current window' })
 
 vim.keymap.set({ 'n', 'v' }, '<leader>y', '"+y') -- yank motion
 vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"+Y') -- yank line
@@ -351,6 +371,7 @@ vim.opt.rtp:prepend(lazypath)
 --    :Lazy update
 --
 --require('nvim-tree').setup()
+
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
@@ -387,6 +408,53 @@ require('lazy').setup({
   {
     'Vimjas/vim-python-pep8-indent',
     ft = 'python', -- Lazy load on Python filetype
+  },
+  -- olimorris/codecompanion.nvim
+  -- Ensure you have your GEMINI_API_KEY environment variable set.
+  -- e.g., export GEMINI_API_KEY="YOUR_API_KEY_HERE" in your shell's rc file.
+  {
+    'olimorris/codecompanion.nvim',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-treesitter/nvim-treesitter',
+      -- Optional: for better markdown rendering in the chat, though not strictly a Gemini adapter dependency.
+      -- { 'MeanderingProgrammer/render-markdown.nvim', ft = { 'markdown', 'codecompanion' } },
+    },
+    config = function()
+      require('codecompanion').setup {
+        strategies = {
+          chat = {
+            adapter = 'gemini', -- Use the Gemini adapter for chat
+          },
+          inline = {
+            adapter = 'gemini',
+          },
+        }, -- Removed an extra comma here that might cause a syntax error
+        adapters = {
+          gemini = function()
+            -- Read the API key from the environment variable
+            local apiKey = os.getenv 'GEMINI_API_KEY' -- Or os.getenv("MY_GEMINI_KEY") if you used that
+
+            -- It's good practice to check if the API key was actually found
+            if apiKey == nil or apiKey == '' then
+              vim.notify('GEMINI_API_KEY environment variable not set or is empty.', vim.log.levels.WARN)
+              -- You might want to return a non-functional or default adapter configuration,
+              -- or simply let it fail if the key is essential.
+              -- For now, we'll proceed, but the adapter will likely fail to authenticate.
+            end
+
+            return require('codecompanion.adapters').extend('gemini', {
+              env = {
+                -- Use the value read from the environment variable
+                api_key = apiKey,
+              },
+            })
+          end,
+        },
+        -- Or set a global default adapter if you want to use Gemini for all strategies
+        -- default_adapter = 'gemini',
+      } -- Corrected structure: strategies and adapters should be at the same level under setup {}
+    end,
   },
   {
     'stevearc/oil.nvim',
@@ -454,7 +522,6 @@ require('lazy').setup({
     'dccsillag/magma-nvim',
     lazy = false,
   },
-  { 'augmentcode/augment.vim' },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
@@ -1132,7 +1199,7 @@ require('lazy').setup({
     keys = function()
       local keys = {
         {
-          '<leader>a',
+          '<C-a>',
           function()
             require('harpoon'):list():add()
           end,
@@ -1235,3 +1302,18 @@ require('lazy').setup({
     },
   },
 })
+require('oil').setup {
+  keymaps = {
+    ['<leader>cp'] = {
+      desc = 'Copy filepath via OSC52 to system clipboard',
+      callback = function()
+        -- 1) Yank the path into v:register
+        require('oil.actions').copy_entry_path.callback()
+        local path = vim.fn.getreg(vim.v.register)
+        -- 2) Send it over OSC52
+        require('osc52').copy(path)
+        vim.notify 'Copied path via OSC52!'
+      end,
+    },
+  },
+}
