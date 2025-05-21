@@ -728,6 +728,42 @@ require('lazy').setup({
   },
   { 'Bilal2453/luvit-meta', lazy = true },
   {
+    'nvim-treesitter/nvim-treesitter-context',
+    event = { 'BufReadPre', 'BufNewFile' },
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
+    opts = {
+      enable = true,
+      throttle = true,
+      max_lines = 0,
+      min_window_height = 0,
+      trim_scope = 'outer',
+      patterns = {
+        default = {
+          'class',
+          'function',
+          'method',
+          'for',
+          'while',
+          'if',
+          'switch',
+          'case',
+        },
+      },
+      exact_patterns = {},
+      zindex = 20,
+      mode = 'cursor',
+    },
+    -- run this after setup
+    config = function(_, opts)
+      -- first set up the plugin with your opts
+      require('treesitter-context').setup(opts)
+      -- then map [c to jump to context
+      vim.keymap.set('n', '[c', function()
+        require('treesitter-context').go_to_context(vim.v.count1)
+      end, { silent = true })
+    end,
+  },
+  {
     -- Main LSP Configuration
     'neovim/nvim-lspconfig',
     dependencies = {
